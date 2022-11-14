@@ -2,6 +2,7 @@ package data
 
 import (
 	"database/sql"
+	"errors"
 
 	"AWtest1.jalenlamb.net/internals/validator"
 )
@@ -43,7 +44,36 @@ func (m UserModel) Insert(user *User) error {
 
 // Get() allows us to retrieve a specific School
 func (m UserModel) Get(id int64) (*User, error) {
-	return nil, nil
+	// Ensure that there is a valid id
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+	// Create the Query
+	query := `
+		SELECT id, username, email
+		FROM userTable
+		WHERE id = $1
+	`
+	// Declare a School variable to hold the returned data
+	var user User
+	// Execute the query using QueryRow()
+	err := m.DB.QueryRow(query, id).Scan(
+		&user.Id,
+		&user.Username,
+		&user.Email,
+	)
+	// Handle any errors
+	if err != nil {
+		// Check the type of error
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+	// Success
+	return &user, nil
 }
 
 // Update() allows us to edit/alter a specific School

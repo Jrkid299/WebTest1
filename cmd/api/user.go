@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -63,12 +64,17 @@ func (app *application) showUserHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Create a new instance of the school struct containing the ID we extracted
-	// From our Url and some sample data
-	user := data.User{
-		Id:       id,
-		Username: "Jalen",
-		Email:    "2018118881@ub.edu.bz",
+	// Fetch the specific school
+	user, err := app.models.User.Get(id)
+	// Handle errors
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
 	}
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
