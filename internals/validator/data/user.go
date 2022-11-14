@@ -8,7 +8,7 @@ import (
 
 type User struct {
 	Id       int64  `json:"id"`
-	Username string `json:"age"`
+	Username string `json:"username"`
 	Email    string `json:"email"`
 }
 
@@ -30,9 +30,9 @@ type UserModel struct {
 // Insert() allows us  to create a new School
 func (m UserModel) Insert(user *User) error {
 	query := `
-		INSERT INTO schools (username, email)
+		INSERT INTO userTable (username, email)
 		VALUES ($1, $2)
-		RETURNING id, 
+		RETURNING id 
 	`
 	// Collect the data fields into a slice
 	args := []interface{}{
