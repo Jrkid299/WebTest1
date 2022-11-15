@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,15 +13,13 @@ import (
 func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request) {
 	//Our target decode destination
 	var input struct {
-		Id       int    `json:"id"`
 		Username string `json:"username"`
 		Email    string `json:"email"`
 	}
-	// Initialize new JSON.Decoder instance
-	err := json.NewDecoder(r.Body).Decode(&input)
-
+	// Initialize a new json.Decoder instance
+	err := app.readJSON(w, r, &input)
 	if err != nil {
-		app.errorRepsonse(w, r, http.StatusBadRequest, err.Error())
+		app.badRequestResponse(w, r, err)
 		return
 	}
 
@@ -82,4 +79,65 @@ func (app *application) showUserHandler(w http.ResponseWriter, r *http.Request) 
 		app.serverErrorResponse(w, r, err)
 	}
 
+}
+
+func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request) {
+	// This method does a complete replacement
+	// Get the id for the school that needs updating
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+	// Fetch the orginal record from the database
+	user, err := app.models.User.Get(id)
+	// Handle errors
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+	// Create an input struct to hold data read in fro mteh client
+	var input struct {
+		Username string `json:"name"`
+		Email    string `json:"email"`
+	}
+
+	// Initialize a new json.Decoder instance
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	// Copy / Update the fields / values in the school variable using the fields
+	// in the input struct
+	user.Username = input.Username
+	user.Email = input.Email
+
+	// Perform validation on the updated School. If validation fails, then
+	// we send a 422 - Unprocessable Entity respose to the client
+	// Initialize a new Validator instance
+	v := validator.New()
+
+	// Check the map to determine if there were any validation errors
+	if data.ValidateUser(v, user); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+	// Pass the updated School record to the Update() method
+	err = app.models.User.Update(user)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	// Write the data returned by Get()
+	err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }

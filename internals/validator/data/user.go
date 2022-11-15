@@ -3,14 +3,17 @@ package data
 import (
 	"database/sql"
 	"errors"
+	"time"
 
 	"AWtest1.jalenlamb.net/internals/validator"
 )
 
 type User struct {
-	Id       int64  `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
+	Id        int64     `json:"id"`
+	CreatedAt time.Time `json:"-"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	Version   int32     `json:"version"`
 }
 
 func ValidateUser(v *validator.Validator, user *User) {
@@ -33,13 +36,13 @@ func (m UserModel) Insert(user *User) error {
 	query := `
 		INSERT INTO userTable (username, email)
 		VALUES ($1, $2)
-		RETURNING id 
+		RETURNING id, created_at, version
 	`
 	// Collect the data fields into a slice
 	args := []interface{}{
 		user.Username, user.Email,
 	}
-	return m.DB.QueryRow(query, args...).Scan(&user.Id)
+	return m.DB.QueryRow(query, args...).Scan(&user.Id, &user.CreatedAt, &user.Version)
 }
 
 // Get() allows us to retrieve a specific School
@@ -50,7 +53,7 @@ func (m UserModel) Get(id int64) (*User, error) {
 	}
 	// Create the Query
 	query := `
-		SELECT id, username, email
+		SELECT id, created_at, username, email, version
 		FROM userTable
 		WHERE id = $1
 	`
@@ -59,8 +62,10 @@ func (m UserModel) Get(id int64) (*User, error) {
 	// Execute the query using QueryRow()
 	err := m.DB.QueryRow(query, id).Scan(
 		&user.Id,
+		&user.CreatedAt,
 		&user.Username,
 		&user.Email,
+		&user.Version,
 	)
 	// Handle any errors
 	if err != nil {
@@ -78,7 +83,19 @@ func (m UserModel) Get(id int64) (*User, error) {
 
 // Update() allows us to edit/alter a specific School
 func (m UserModel) Update(user *User) error {
-	return nil
+	// Create a query
+	query := `
+		UPDATE userTable
+		SET username = $1, email = $2, version = version + 1
+		WHERE id = $3
+		RETURNING version
+	`
+	args := []interface{}{
+		user.Username,
+		user.Email,
+		user.Id,
+	}
+	return m.DB.QueryRow(query, args...).Scan(&user.Version)
 }
 
 // Delete() removes a specific School
