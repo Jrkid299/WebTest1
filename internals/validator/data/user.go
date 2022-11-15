@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"time"
@@ -38,11 +39,15 @@ func (m UserModel) Insert(user *User) error {
 		VALUES ($1, $2)
 		RETURNING id, created_at, version
 	`
+	// Create a context
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// Cleanup to prevent memory leaks
+	defer cancel()
 	// Collect the data fields into a slice
 	args := []interface{}{
 		user.Username, user.Email,
 	}
-	return m.DB.QueryRow(query, args...).Scan(&user.Id, &user.CreatedAt, &user.Version)
+	return m.DB.QueryRowContext(ctx, query, args...).Scan(&user.Id, &user.CreatedAt, &user.Version)
 }
 
 // Get() allows us to retrieve a specific School
@@ -59,8 +64,14 @@ func (m UserModel) Get(id int64) (*User, error) {
 	`
 	// Declare a School variable to hold the returned data
 	var user User
+
+	// Create a context
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+
+	// Cleanup to prevent memory leaks
+	defer cancel()
 	// Execute the query using QueryRow()
-	err := m.DB.QueryRow(query, id).Scan(
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
 		&user.Id,
 		&user.CreatedAt,
 		&user.Username,
@@ -91,6 +102,11 @@ func (m UserModel) Update(user *User) error {
 		AND version = $4
 		RETURNING version
 	`
+	// Create a context
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// Cleanup to prevent memory leaks
+	defer cancel()
+
 	args := []interface{}{
 		user.Username,
 		user.Email,
@@ -98,7 +114,7 @@ func (m UserModel) Update(user *User) error {
 		user.Version,
 	}
 	// Check for edit conflicts
-	err := m.DB.QueryRow(query, args...).Scan(&user.Version)
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.Version)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -121,8 +137,12 @@ func (m UserModel) Delete(id int64) error {
 		DELETE FROM userTable
 		WHERE id = $1
 	`
+	// Create a context
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// Cleanup to prevent memory leaks
+	defer cancel()
 	// Execute the query
-	result, err := m.DB.Exec(query, id)
+	result, err := m.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
