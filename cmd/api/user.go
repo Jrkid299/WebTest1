@@ -103,8 +103,8 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
 	}
 	// Create an input struct to hold data read in fro mteh client
 	var input struct {
-		Username string `json:"name"`
-		Email    string `json:"email"`
+		Username *string `json:"username"`
+		Email    *string `json:"email"`
 	}
 
 	// Initialize a new json.Decoder instance
@@ -114,10 +114,14 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Copy / Update the fields / values in the school variable using the fields
-	// in the input struct
-	user.Username = input.Username
-	user.Email = input.Email
+	// Check for updates
+	if input.Username != nil {
+		user.Username = *input.Username
+	}
+
+	if input.Email != nil {
+		user.Email = *input.Email
+	}
 
 	// Perform validation on the updated School. If validation fails, then
 	// we send a 422 - Unprocessable Entity respose to the client
