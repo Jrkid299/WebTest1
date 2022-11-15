@@ -88,14 +88,26 @@ func (m UserModel) Update(user *User) error {
 		UPDATE userTable
 		SET username = $1, email = $2, version = version + 1
 		WHERE id = $3
+		AND version = $4
 		RETURNING version
 	`
 	args := []interface{}{
 		user.Username,
 		user.Email,
 		user.Id,
+		user.Version,
 	}
-	return m.DB.QueryRow(query, args...).Scan(&user.Version)
+	// Check for edit conflicts
+	err := m.DB.QueryRow(query, args...).Scan(&user.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
+	return nil
 }
 
 // Delete() removes a specific School

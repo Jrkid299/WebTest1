@@ -136,7 +136,12 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
 	// Pass the updated School record to the Update() method
 	err = app.models.User.Update(user)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			app.editConflictResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 	// Write the data returned by Get()
